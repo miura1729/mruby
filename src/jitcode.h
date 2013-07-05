@@ -52,7 +52,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
   }
 
   void 
-    gen_exit(mrb_code *pc, int is_clr_rc)
+    gen_exit(mrb_code *pc, int is_clr_rc, int is_clr_exitpos)
   {
     inLocalLabel();
     L(".exitlab");
@@ -63,8 +63,13 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     if (is_clr_rc) {
       xor(eax, eax);
     }
-    //mov(edx, (Xbyak::uint32)exit_ptr);
-    mov(edx, ".exitlab");
+    if (is_clr_exitpos) {
+      xor(edx, edx);
+    }
+    else {
+      //mov(edx, (Xbyak::uint32)exit_ptr);
+      mov(edx, ".exitlab");
+    }
     ret();
     outLocalLabel();
   }
@@ -107,7 +112,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       }
       else {
 	newci->entry = (void *(*)())getCurr();
-	gen_exit(newpc, 1);
+	gen_exit(newpc, 1, 0);
       }
       mrb->compile_info.code_base = NULL;
     }
@@ -127,7 +132,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     }
 
     /* Guard fail exit code */
-    gen_exit(pc, 1);
+    gen_exit(pc, 1, 0);
 
     L("@@");
   }
@@ -145,7 +150,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     }
 
     /* Guard fail exit code */
-    gen_exit(pc, 1);
+    gen_exit(pc, 1, 0);
 
     L("@@");
   }
@@ -170,7 +175,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     }
 
     /* Guard fail exit code */
-    gen_exit(pc, 1);
+    gen_exit(pc, 1, 0);
 
     L("@@");
     /* Import from class.h */
@@ -189,7 +194,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       cmp(eax, (int)mrb_object(v)->c);
       jz("@f");
       /* Guard fail exit code */
-      gen_exit(pc, 1);
+      gen_exit(pc, 1, 0);
 
       L("@@");
       break;
@@ -464,7 +469,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
 \
     test(eax, eax);					             \
     jz("@f");                                                        \
-    gen_exit(NULL, 0);					             \
+    gen_exit(NULL, 0, 0);				             \
     L("@@");                                                         \
   }while (0)
 
@@ -479,6 +484,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     int a = GETARG_A(i);
     int n = GETARG_C(i);
     struct RProc *m;
+    mrb_value prim;
     struct RClass *c;
     const void *code = getCurr();
     mrb_value recv;
@@ -507,9 +513,18 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       mov(dword [ecx + dstoff + 4], eax);
     }
 
-    CALL_CFUNC_BEGIN;
-
     if (MRB_PROC_CFUNC_P(m)) {
+      prim = mrb_obj_iv_get(mrb, (struct RObject *)c, mid);
+      mrb->vmstatus = status;
+      if (mrb_type(prim) == MRB_TT_PROC) {
+	mrb_value res = mrb_proc_ptr(prim)->body.func(mrb, prim);
+	if (!mrb_nil_p(res)) {
+	  return code;
+	}
+      }
+
+      //puts(mrb_sym2name(mrb, mid)); // for tuning
+      CALL_CFUNC_BEGIN;
       mov(eax, (Xbyak::uint32)c);
       push(eax);
       mov(eax, (Xbyak::uint32)m);
@@ -521,6 +536,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       int toff;
       mrbjit_codetab *ctab;
 
+      CALL_CFUNC_BEGIN;
       mov(eax, (Xbyak::uint32)c);
       push(eax);
       mov(eax, (Xbyak::uint32)m);
@@ -570,7 +586,26 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     emit_call(mrb_state *mrb, mrbjit_vmstatus *status)
   {
     const void *code = getCurr();
+    mrb_callinfo *ci = mrb->c->ci;
+    mrb_value recv = mrb->c->stack[0];
+    struct RProc *m = mrb_proc_ptr(recv);
     
+    if (ci->argc < 0) {
+      return NULL;
+    }
+
+    if (MRB_PROC_CFUNC_P(m)) {
+      return NULL;
+    }
+
+    if (m->body.irep == NULL) {
+      return NULL;
+    }
+
+    if (ci->argc < 0) {
+      return NULL;
+    }
+
     mov(eax, dword [esi + OffsetOf(mrb_state, c)]);
     mov(eax, dword [eax + OffsetOf(mrb_context, stack)]);
     mov(eax, dword [eax + OffsetOf(mrb_value, value.p)]);
@@ -578,11 +613,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     mov(eax, dword [eax + OffsetOf(mrb_irep, jit_top_entry)]);
     test(eax, eax);
     jnz("@f");
-    mov(eax, dword [ebx + OffsetOf(mrbjit_vmstatus, pc)]);
-    mov(dword [eax], (Xbyak::uint32)(*status->pc));
-    xor(eax, eax);
-    xor(edx, edx);
-    ret();
+    gen_exit(*status->pc, 1, 1);
     L("@@");
     push(eax);
     CALL_CFUNC_BEGIN;
@@ -626,7 +657,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     mov(eax, dword [eax + OffsetOf(mrb_callinfo, jit_entry)]);
     test(eax, eax);
     jnz("@f");
-    gen_exit(*status->pc, 1);
+    gen_exit(*status->pc, 1, 0);
     L("@@");
     push(eax);
     
@@ -647,7 +678,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     test(eax, eax);
     jz("@f");
     pop(edx);			/* pop return address from callinfo */
-    gen_exit(NULL, 0);
+    gen_exit(NULL, 0, 0);
     L("@@");
 
     mov(eax, dword [ebx + OffsetOf(mrbjit_vmstatus, regs)]);
@@ -722,7 +753,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       movsd(ptr [ecx + reg0off], xmm0);                                 \
     }                                                                   \
     else {                                                              \
-      gen_exit(*ppc, 1);						\
+      gen_exit(*ppc, 1, 0);						\
     }                                                                   \
 } while(0)
 
@@ -823,7 +854,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       movsd(ptr [ecx + off], xmm0);                                     \
     }                                                                   \
     else {                                                              \
-      gen_exit(*ppc, 1);						\
+      gen_exit(*ppc, 1, 0);						\
     }                                                                   \
 } while(0)
     
@@ -1078,11 +1109,17 @@ do {                                                                 \
       mov(dword [ecx + dstoff + 4], eax);
     }
     else {
-      gen_exit(*ppc, 1);						\
+      gen_exit(*ppc, 1, 0);
     }
 
     return code;
   }
+
+  /* primitive methodes */
+  mrb_value mrbjit_prim_num_cmp_impl(mrb_state *mrb, mrb_value proc);
+  mrb_value mrbjit_prim_fix_succ_impl(mrb_state *mrb, mrb_value proc);
+  mrb_value mrbjit_prim_obj_not_equal_m_impl(mrb_state *mrb, mrb_value proc);
+  mrb_value mrbjit_prim_ary_aget_impl(mrb_state *mrb, mrb_value proc);
 };
 
 #endif  /* MRUBY_JITCODE_H */

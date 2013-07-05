@@ -21,6 +21,8 @@
 #include "mruby/numeric.h"
 #include "mruby/string.h"
 
+#include "mruby/primitive.h"
+
 #ifdef MRB_USE_FLOAT
 #define floor(f) floorf(f)
 #define ceil(f) ceilf(f)
@@ -1366,6 +1368,7 @@ mrb_init_numeric(mrb_state *mrb)
   mrb_define_method(mrb, numeric, "quo",      num_div,        MRB_ARGS_REQ(1));  /* 15.2.7.4.5 (x) */
   mrb_define_method(mrb, numeric, "abs",      num_abs,        MRB_ARGS_NONE());  /* 15.2.7.4.3  */
   mrb_define_method(mrb, numeric, "<=>",      num_cmp,        MRB_ARGS_REQ(1));  /* 15.2.9.3.6  */
+  mrbjit_define_primitive(mrb, numeric, "<=>", mrbjit_prim_num_cmp);
 
   /* Integer Class */
   integer = mrb_define_class(mrb, "Integer",  numeric);
@@ -1391,6 +1394,8 @@ mrb_init_numeric(mrb_state *mrb)
   mrb_define_method(mrb, fixnum,  "hash",     flo_hash,          MRB_ARGS_NONE()); /* 15.2.8.3.18 */
   mrb_define_method(mrb, fixnum,  "next",     int_succ,          MRB_ARGS_NONE()); /* 15.2.8.3.19 */
   mrb_define_method(mrb, fixnum,  "succ",     fix_succ,          MRB_ARGS_NONE()); /* 15.2.8.3.21 */
+  mrbjit_define_primitive(mrb, fixnum, "succ", mrbjit_prim_fix_succ);
+
   mrb_define_method(mrb, fixnum,  "to_f",     fix_to_f,          MRB_ARGS_NONE()); /* 15.2.8.3.23 */
   mrb_define_method(mrb, fixnum,  "to_s",     fix_to_s,          MRB_ARGS_NONE()); /* 15.2.8.3.25 */
   mrb_define_method(mrb, fixnum,  "inspect",  fix_to_s,          MRB_ARGS_NONE());
