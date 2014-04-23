@@ -1784,10 +1784,15 @@ RETRY_TRY_BLOCK:
       mrb_value *blk = &argv[argc < 0 ? 1 : argc];
 
       if (argc < 0) {
-        struct RArray *ary = mrb_ary_ptr(regs[1]);
-        argv = ary->ptr;
-        argc = ary->len;
-        mrb_gc_protect(mrb, regs[1]);
+	if (mrb_fake_p(regs[1])) {
+	  argv[0] = mrb_orignal_value(regs[1]);
+	}
+	else {
+	  struct RArray *ary = mrb_ary_ptr(regs[1]);
+	  argv = ary->ptr;
+	  argc = ary->len;
+	  mrb_gc_protect(mrb, regs[1]);
+	}
       }
       if (mrb->c->ci->proc && MRB_PROC_STRICT_P(mrb->c->ci->proc)) {
         if (argc >= 0) {
@@ -1801,6 +1806,10 @@ RETRY_TRY_BLOCK:
         argc = mrb_ary_ptr(argv[0])->len;
         argv = mrb_ary_ptr(argv[0])->ptr;
       }
+      else if (argc == 1 && mrb_fake_p(argv[0])) {
+	argv[0] = mrb_orignal_value(argv[0]);
+      }
+
       mrb->c->ci->argc = len;
       if (argc < len) {
         regs[len+1] = *blk; /* move block */
@@ -1827,7 +1836,12 @@ RETRY_TRY_BLOCK:
           value_move(&regs[1], argv, m1+o);
         }
         if (r) {
-          regs[m1+o+1] = mrb_ary_new_from_values(mrb, argc-m1-o-m2, argv+m1+o);
+	  if (argc-m1-o-m2 == 1 && mrb_fakeable_p(argv[m1+o])) {
+	    regs[m1+o+1] = mrb_fakeary_value(argv[m1+o]);
+	  }
+	  else {
+	    regs[m1+o+1] = mrb_ary_new_from_values(mrb, argc-m1-o-m2, argv+m1+o);
+	  }
         }
         if (m2) {
           if (argc-m2 > m1) {

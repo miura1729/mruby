@@ -36,6 +36,7 @@ mrb_class(mrb_state *mrb, mrb_value v)
   case MRB_TT_SYMBOL:
     return mrb->symbol_class;
   case MRB_TT_FIXNUM:
+  case MRB_TT_FAKE_FIXARY:
     return mrb->fixnum_class;
   case MRB_TT_FLOAT:
     return mrb->float_class;

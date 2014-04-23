@@ -560,6 +560,7 @@ gc_mark_children(mrb_state *mrb, struct RBasic *obj)
     break;
 
   case MRB_TT_STRING:
+  case MRB_TT_FAKE_STRARY:
     break;
 
   case MRB_TT_RANGE:
@@ -597,6 +598,7 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
   case MRB_TT_FIXNUM:
   case MRB_TT_SYMBOL:
   case MRB_TT_CACHE_VALUE:
+  case MRB_TT_FAKE_FIXARY:
     /* cannot happen */
     return;
 
@@ -651,6 +653,7 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
     break;
 
   case MRB_TT_STRING:
+  case MRB_TT_FAKE_STRARY:
     mrb_gc_free_str(mrb, (struct RString*)obj);
     break;
 

@@ -207,10 +207,15 @@ mrbjit_exec_enter(mrb_state *mrb, mrbjit_vmstatus *status)
   mrb_value *blk = &argv[argc < 0 ? 1 : argc];
 
   if (argc < 0) {
-    struct RArray *ary = mrb_ary_ptr(regs[1]);
-    argv = ary->ptr;
-    argc = ary->len;
-    mrb_gc_protect(mrb, regs[1]);
+    if (mrb_fake_p(regs[1])) {
+      argv[0] = mrb_orignal_value(argv[0]);
+    }
+    else {
+      struct RArray *ary = mrb_ary_ptr(regs[1]);
+      argv = ary->ptr;
+      argc = ary->len;
+      mrb_gc_protect(mrb, regs[1]);
+    }
   }
   if (mrb->c->ci->proc && MRB_PROC_STRICT_P(mrb->c->ci->proc)) {
     if (argc >= 0) {
@@ -224,6 +229,10 @@ mrbjit_exec_enter(mrb_state *mrb, mrbjit_vmstatus *status)
     argc = mrb_ary_ptr(argv[0])->len;
     argv = mrb_ary_ptr(argv[0])->ptr;
   }
+  else if (argc == 1 && mrb_fake_p(argv[0])) {
+    argv[0] = mrb_orignal_value(argv[0]);
+  }
+
   mrb->c->ci->argc = len;
   if (argc < len) {
     regs[len+1] = *blk; /* move block */
@@ -238,7 +247,12 @@ mrbjit_exec_enter(mrb_state *mrb, mrbjit_vmstatus *status)
       value_move(&regs[len-m2+1], &argv[argc-mlen], m2); /* m2 */
     }
     if (r) {                  /* r */
-      regs[m1+o+1] = mrb_ary_new_capa(mrb, 0);
+      if (argc-m1-o-m2 == 1 && mrb_fakeable_p(argv[m1+o])) {
+	regs[m1+o+1] = mrb_fakeary_value(argv[m1+o]);
+      }
+      else {
+	regs[m1+o+1] = mrb_ary_new_from_values(mrb, argc-m1-o-m2, argv+m1+o);
+      }
     }
     if (o == 0) {
       *(status->pc) += 1;
