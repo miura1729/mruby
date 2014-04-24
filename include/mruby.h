@@ -175,6 +175,7 @@ typedef struct mrb_state {
   struct RClass *nil_class;
   struct RClass *symbol_class;
   struct RClass *kernel_module;
+  struct RClass *fake_class;
 
   struct heap_page *heaps;                /* heaps for GC */
   struct heap_page *sweeps;

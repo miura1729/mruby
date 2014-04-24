@@ -36,7 +36,6 @@ mrb_class(mrb_state *mrb, mrb_value v)
   case MRB_TT_SYMBOL:
     return mrb->symbol_class;
   case MRB_TT_FIXNUM:
-  case MRB_TT_FAKE_FIXARY:
     return mrb->fixnum_class;
   case MRB_TT_FLOAT:
     return mrb->float_class;
@@ -44,6 +43,11 @@ mrb_class(mrb_state *mrb, mrb_value v)
     return mrb->object_class;
   case MRB_TT_ENV:
     return NULL;
+  case MRB_TT_FAKE_FIXARY:
+  case MRB_TT_FAKE_STRARY:
+  case MRB_TT_FAKE_ARYARY:
+  case MRB_TT_FAKE_OBJARY:
+    return mrb->fake_class;
   default:
     return mrb_obj_ptr(v)->c;
   }

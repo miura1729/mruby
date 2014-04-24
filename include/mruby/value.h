@@ -108,24 +108,25 @@ enum mrb_vtype {
   MRB_TT_CPTR,        /*   8 */
   MRB_TT_FAKE_FIXARY, /*   9 */
   MRB_TT_FAKE_STRARY, /*  10 */
-  MRB_TT_FAKE_OBJARY, /*  11 */
-  MRB_TT_OBJECT,      /*  12 */
-  MRB_TT_CLASS,       /*  13 */
-  MRB_TT_MODULE,      /*  14 */
-  MRB_TT_ICLASS,      /*  15 */
-  MRB_TT_SCLASS,      /*  16 */
-  MRB_TT_PROC,        /*  17 */
-  MRB_TT_ARRAY,       /*  18 */
-  MRB_TT_HASH,        /*  19 */
-  MRB_TT_STRING,      /*  20 */
-  MRB_TT_RANGE,       /*  21 */
-  MRB_TT_EXCEPTION,   /*  22 */
-  MRB_TT_FILE,        /*  23 */
-  MRB_TT_ENV,         /*  24 */
-  MRB_TT_DATA,        /*  25 */
-  MRB_TT_FIBER,       /*  26 */
-  MRB_TT_CACHE_VALUE, /*  27 */
-  MRB_TT_MAXDEFINE    /*  28 */
+  MRB_TT_FAKE_ARYARY, /*  11 */
+  MRB_TT_FAKE_OBJARY, /*  12 */
+  MRB_TT_OBJECT,      /*  13 */
+  MRB_TT_CLASS,       /*  14 */
+  MRB_TT_MODULE,      /*  15 */
+  MRB_TT_ICLASS,      /*  16 */
+  MRB_TT_SCLASS,      /*  17 */
+  MRB_TT_PROC,        /*  18 */
+  MRB_TT_ARRAY,       /*  19 */
+  MRB_TT_HASH,        /*  20 */
+  MRB_TT_STRING,      /*  21 */
+  MRB_TT_RANGE,       /*  22 */
+  MRB_TT_EXCEPTION,   /*  23 */
+  MRB_TT_FILE,        /*  24 */
+  MRB_TT_ENV,         /*  25 */
+  MRB_TT_DATA,        /*  26 */
+  MRB_TT_FIBER,       /*  27 */
+  MRB_TT_CACHE_VALUE, /*  28 */
+  MRB_TT_MAXDEFINE    /*  29 */
 };
 
 #define MRB_TT_HAS_BASIC  MRB_TT_OBJECT
@@ -362,6 +363,7 @@ mrb_float_value(struct mrb_state *mrb, mrb_float f)
 #define mrb_bool(o)   (mrb_type(o) != MRB_TT_FALSE)
 #define mrb_fakeable_p(o) ((mrb_type(o) == MRB_TT_FIXNUM) || \
                            (mrb_type(o) == MRB_TT_STRING) || \
+                           (mrb_type(o) == MRB_TT_ARRAY) || \
                            (mrb_type(o) == MRB_TT_OBJECT))
 #define mrb_fake_p(o) ((mrb_type(o) >= MRB_TT_FAKE_FIXARY) && \
 		       (mrb_type(o) <= MRB_TT_FAKE_OBJARY))
@@ -570,6 +572,10 @@ mrb_fakeary_value(mrb_value org)
     MRB_SET_VALUE(v, MRB_TT_FAKE_STRARY, value.p, org.value.p);
     break;
 
+  case MRB_TT_ARRAY:
+    MRB_SET_VALUE(v, MRB_TT_FAKE_ARYARY, value.p, org.value.p);
+    break;
+
   case MRB_TT_OBJECT:
     MRB_SET_VALUE(v, MRB_TT_FAKE_OBJARY, value.p, org.value.p);
     break;
@@ -593,6 +599,10 @@ mrb_orignal_value(mrb_value fake)
 
   case MRB_TT_FAKE_STRARY:
     MRB_SET_VALUE(v, MRB_TT_STRING, value.p, fake.value.p);
+    break;
+
+  case MRB_TT_FAKE_ARYARY:
+    MRB_SET_VALUE(v, MRB_TT_ARRAY, value.p, fake.value.p);
     break;
 
   case MRB_TT_FAKE_OBJARY:
