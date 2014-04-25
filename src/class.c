@@ -472,6 +472,7 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
   char c;
   int i = 0;
   mrb_value *sp = mrb->c->stack + 1;
+  mrb_value val;
   va_list ap;
   int argc = mrb->c->ci->argc;
   mrb_bool opt = 0;
@@ -479,10 +480,17 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
 
   va_start(ap, format);
   if (argc < 0) {
-    struct RArray *a = mrb_ary_ptr(mrb->c->stack[1]);
+    if (mrb_fake_p(mrb->c->stack[1])) {
+      val = mrb_orignal_value(mrb->c->stack[1]);
+      sp = &val;
+      argc = 1;
+    }
+    else {
+      struct RArray *a = mrb_ary_ptr(mrb->c->stack[1]);
 
-    argc = a->len;
-    sp = a->ptr;
+      argc = a->len;
+      sp = a->ptr;
+    }
   }
   while ((c = *format++)) {
     switch (c) {

@@ -1238,7 +1238,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     /* Ax             arg setup according to flags (24=5:5:1:5:5:1:1) */
     /* number of optional arguments times OP_JMP should follow */
     int ax = GETARG_Ax(i);
-    /* int m1 = (ax>>18)&0x1f; */
+    int m1 = (ax>>18)&0x1f;
     int o  = (ax>>13)&0x1f;
     int r  = (ax>>12)&0x1;
     int m2 = (ax>>7)&0x1f;
@@ -1247,6 +1247,14 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     selfinfo->type = (mrb_vtype)mrb_type(regs[0]);
     selfinfo->klass = mrb_class(mrb, regs[0]);
     selfinfo->constp = 1;
+
+    if (r && mrb->c->ci->argc - m1 -o - m2 == 1 
+	&& mrb_fakeable_p(regs[m1 + o + 1])) {
+      mrbjit_reginfo *arginfo = &coi->reginfo[m1 + o + 1];
+      mrb_value fake = mrb_fakeary_value(regs[m1 + o + 1]);
+      arginfo->type = (mrb_vtype)mrb_type(fake);
+      arginfo->klass = mrb_class(mrb, fake);
+    }
 
     if (mrb->c->ci->argc < 0 || o != 0 || r != 0 || m2 != 0) {
       CALL_CFUNC_BEGIN;
@@ -1973,6 +1981,13 @@ do {                                                                 \
     int dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
     int srcoff = GETARG_B(**ppc) * sizeof(mrb_value);
     mrbjit_reginfo *dinfo = &coi->reginfo[GETARG_A(**ppc)];
+    mrbjit_reginfo *sinfo = &coi->reginfo[GETARG_B(**ppc)];
+
+    if (sinfo->klass == mrb->fake_class) {
+      movsd(xmm0, ptr [ecx + srcoff]);
+      movsd(ptr [ecx + dstoff], xmm0);
+      return code;
+    }
 
     mov(eax, ptr [esi + OffsetOf(mrb_state, arena_idx)]);
     push(eax);

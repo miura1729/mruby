@@ -2502,9 +2502,15 @@ RETRY_TRY_BLOCK:
 
     CASE(OP_ARYCAT) {
       /* A B            mrb_ary_concat(R(A),R(B)) */
-      mrb_ary_concat(mrb, regs[GETARG_A(i)],
-                     mrb_ary_splat(mrb, regs[GETARG_B(i)]));
-      ARENA_RESTORE(mrb, ai);
+      if (mrb_fake_p(regs[GETARG_B(i)]) && 
+	  mrb_ary_ptr(regs[GETARG_A(i)])->len == 0) {
+	regs[GETARG_A(i)] = regs[GETARG_B(i)];
+      }
+      else {
+	mrb_ary_concat(mrb, regs[GETARG_A(i)],
+		       mrb_ary_splat(mrb, regs[GETARG_B(i)]));
+	ARENA_RESTORE(mrb, ai);
+      }
       NEXT;
     }
 
