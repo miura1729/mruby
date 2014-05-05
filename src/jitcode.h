@@ -38,7 +38,6 @@ void disasm_once(mrb_state *, mrb_irep *, mrb_code);
 
 #define OffsetOf(s_type, field) ((size_t) &((s_type *)0)->field) 
 #define VMSOffsetOf(field) (((intptr_t)status->field) - ((intptr_t)status->pc))
-#define CALL_MAXARGS 127
 
 /* Regs Map                               *
  * ecx   -- pointer to regs               *
@@ -530,17 +529,41 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     gen_set_jit_entry(mrb, pc, coi, irep);
 
     if (is_block_call) {
-      push(ecx);
-      push(ebx);
+      mov(eax, dword [edi + OffsetOf(mrb_context, ci)]);
+      mov(edx, dword [ecx]);
+      mov(dword [eax + OffsetOf(mrb_callinfo, proc)], edx);
+      mov(dword [ebx + VMSOffsetOf(proc)], edx);
 
-      lea(eax, dword [ebx + VMSOffsetOf(status)]);
-      push(eax);
-      push(esi);
-      call((void *)mrbjit_exec_call);
-      add(esp, 2 * sizeof(void *));
+      mov(edx, dword [edx + OffsetOf(struct RProc, target_class)]);
+      mov(dword [eax + OffsetOf(mrb_callinfo, target_class)], edx);
 
-      pop(ebx);
-      pop(ecx);
+      mov(edx, dword [ecx]);
+      mov(edx, dword [edx + OffsetOf(struct RProc, body.irep)]);
+      mov(dword [ebx + VMSOffsetOf(irep)], edx);
+
+      mov(edx, dword [edx + OffsetOf(mrb_irep, nregs)]);
+      mov(dword [eax + OffsetOf(mrb_callinfo, nregs)], edx);
+
+      mov(edx, dword [ecx]);
+      mov(edx, dword [edx + OffsetOf(struct RProc, env)]);
+      mov(edx, dword [edx + OffsetOf(struct REnv, mid)]);
+      test(edx, edx);
+      jz("@f");
+
+      mov(dword [eax + OffsetOf(mrb_callinfo, mid)], edx);
+      
+      L("@@");
+
+      mov(eax, dword [ecx]);
+      mov(edx, dword [eax + OffsetOf(struct RProc, body.irep)]);
+      mov(edx, dword [edx + OffsetOf(mrb_irep, iseq)]);
+      mov(dword [ebx + VMSOffsetOf(pc)], edx);
+
+      mov(edx, dword [eax + OffsetOf(struct RProc, env)]);
+      mov(edx, dword [edx + OffsetOf(struct REnv, stack)]);
+      movsd(xmm0, ptr [edx]);
+      mov(eax, dword [edi + OffsetOf(mrb_context, stack)]);
+      movsd(ptr [eax], xmm0);
 
       mrb->compile_info.force_compile = 1;
     }
@@ -781,7 +804,7 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     /* You can not change class of self in Ruby */
     if (mrb_type(self) == MRB_TT_OBJECT) {
       mov(eax, dword [ecx]);
-      mov(eax, dword [eax + OffsetOf(struct RObject, segcache)]);
+      mov(eax, dword [eax + OffsetOf(struct RObject, ivent.rootseg)]);
       movsd(xmm0, ptr [eax + ivoff * sizeof(mrb_value)]);
     }
     else {
@@ -843,24 +866,14 @@ class MRBJitCode: public Xbyak::CodeGenerator {
       mov(eax, dword [eax + OffsetOf(struct RObject, iv)]);
       ivoff =  mrb_obj_ptr(self)->iv->last_len;
       inc(dword [eax + OffsetOf(iv_tbl, last_len)]);
-      inc(dword [eax + OffsetOf(iv_tbl, size)]);
       mov(eax, dword [eax]);
       movsd(ptr [eax + ivoff * sizeof(mrb_value)], xmm0);
-      if (mrb_type(self) == MRB_TT_OBJECT) {
-	mov(dword [edx + OffsetOf(struct RObject, segcache)], eax);
-      }
       mov(dword [eax + MRB_SEGMENT_SIZE * sizeof(mrb_value) + ivoff * sizeof(mrb_sym)], (Xbyak::uint32)id);
     }
     else {
-      if (mrb_type(self) == MRB_TT_OBJECT) {
-	mov(eax, dword [eax + OffsetOf(struct RObject, segcache)]);
-	movsd(ptr [eax + ivoff * sizeof(mrb_value)], xmm0);
-      }
-      else {
-	mov(eax, dword [eax + OffsetOf(struct RObject, iv)]);
-	mov(eax, dword [eax]);
-	movsd(ptr [eax + ivoff * sizeof(mrb_value)], xmm0);
-      }
+      mov(eax, dword [eax + OffsetOf(struct RObject, iv)]);
+      mov(eax, dword [eax]);
+      movsd(ptr [eax + ivoff * sizeof(mrb_value)], xmm0);
     }
 
     return code;
@@ -1186,14 +1199,9 @@ class MRBJitCode: public Xbyak::CodeGenerator {
     emit_call(mrb_state *mrb, mrbjit_vmstatus *status)
   {
     const void *code = getCurr();
-    mrb_callinfo *ci = mrb->c->ci;
     mrb_value recv = mrb->c->stack[0];
     struct RProc *m = mrb_proc_ptr(recv);
     
-    if (ci->argc < 0) {
-      return NULL;
-    }
-
     if (MRB_PROC_CFUNC_P(m)) {
       return NULL;
     }
@@ -2157,7 +2165,7 @@ do {                                                                 \
     dinfo->klass = mrb->proc_class;
     dinfo->constp = 1;
 
-    if (mirep->shared_lambda && c->proc_pool) {
+    if (mirep->simple_lambda && c->proc_pool) {
       for (i = -1; c->proc_pool[i].proc.tt == MRB_TT_PROC; i--) {
 	if (c->proc_pool[i].proc.body.irep == mirep) {
 	  struct RProc *nproc = &c->proc_pool[i].proc;

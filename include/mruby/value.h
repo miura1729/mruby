@@ -75,7 +75,8 @@ typedef short mrb_sym;
 #  define PRIo64 "I64o"
 #  define PRIx64 "I64x"
 #  define PRIX64 "I64X"
-#  define INFINITY ((float)(DBL_MAX * DBL_MAX))
+static unsigned int IEEE754_INFINITY_BITS_SINGLE = 0x7F800000;
+#  define INFINITY (*(float *)&IEEE754_INFINITY_BITS_SINGLE)
 #  define NAN ((float)(INFINITY - INFINITY))
 # else
 #  include <inttypes.h>
@@ -414,10 +415,16 @@ struct RBasic {
 /* obsolete macro mrb_basic; will be removed soon */
 #define mrb_basic(v)     mrb_basic_ptr(v)
 
+/* Instance variable table structure */
+typedef struct iv_tbl {
+  struct segment *rootseg;
+  size_t last_len;
+} iv_tbl;
+
 struct RObject {
   MRB_OBJECT_HEADER;
   struct iv_tbl *iv;
-  mrb_value *segcache;
+  struct iv_tbl ivent;
 };
 #define mrb_obj_ptr(v)   ((struct RObject*)(mrb_ptr(v)))
 /* obsolete macro mrb_object; will be removed soon */
