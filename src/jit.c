@@ -99,7 +99,7 @@ mrbjit_check_inlineble(mrb_state *mrb, mrb_irep *irep)
 
 void *
 mrbjit_exec_send_c(mrb_state *mrb, mrbjit_vmstatus *status,
-		 struct RProc *m, struct RClass *c)
+		   struct RProc *m, struct RClass *c, void *ret)
 {
   /* A B C  R(A) := call(R(A),Sym(B),R(A+1),... ,R(A+C-1)) */
   mrb_code *pc = *status->pc;
@@ -172,6 +172,28 @@ mrbjit_exec_send_c(mrb_state *mrb, mrbjit_vmstatus *status,
       *(status->regs) = mrb->c->stack = mrb->c->ci->stackent;
       *(status->pc) = ci->pc;
       mrbjit_cipop(mrb);
+      
+      if (mid == mrb_intern_cstr(mrb, "send")) {
+	mrb->c->ci[-1].jit_entry = ret;
+
+	if (irep->jit_entry_tab[0].body[0].entry) {
+	  asm volatile("mov %0, %%ecx"
+		       :
+		       : "c"(*(status->regs)));
+	  asm volatile("mov %0, %%eax"
+		       :
+		       : "a"(irep->jit_entry_tab[0].body[0].entry));
+	  asm volatile("add $76, %esp");
+	  asm volatile("pop %ebx");
+	  asm volatile("pop %esi");
+	  asm volatile("pop %edi");
+	  asm volatile("pop %ebp");
+	  asm volatile("add $24, %esp");
+	  asm volatile("pop %ebx");
+	  asm volatile("pop %edx");
+	  asm volatile("jmp %eax");
+	}
+      }
 
       return status->gototable[6]; /* goto L_DISPATCH */
     }

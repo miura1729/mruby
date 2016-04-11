@@ -25,7 +25,7 @@ extern "C" {
 #include "mruby/jit.h"
 
 void *mrbjit_exec_send_c(mrb_state *, mrbjit_vmstatus *, 
-		      struct RProc *, struct RClass *);
+			 struct RProc *, struct RClass *, void *);
 void *mrbjit_exec_send_c_void(mrb_state *, mrbjit_vmstatus *, 
 		      struct RProc *, struct RClass *);
 void *mrbjit_exec_extend_callinfo(mrb_state *, mrb_context *, int);
@@ -499,8 +499,8 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     
   }
 
-  void 
-    gen_set_jit_entry(mrb_state *mrb, mrb_code *pc, mrbjit_code_info *coi, mrb_irep *irep)
+  void
+    gen_set_jit_entry_lit(mrb_state *mrb, mrb_code *pc, mrbjit_code_info *coi, mrb_irep *irep)
   {
     int ioff;
     int toff;
@@ -533,13 +533,19 @@ class MRBJitCode: public MRBGenericCodeGenerator {
 
     /* This code is patched when compiled continaution code */
     if (ctab->body[toff].entry) {
-      emit_load_literal_noopt(mrb, coi, reg_tmp1, 
+      emit_load_literal_noopt(mrb, coi, reg_tmp1,
 			      (cpu_word_t)ctab->body[toff].entry);
     }
     else {
       ctab->body[toff].patch_pos = getCurr();
       emit_load_literal_noopt(mrb, coi, reg_tmp1, 0);
     }
+  }
+
+  void 
+    gen_set_jit_entry(mrb_state *mrb, mrb_code *pc, mrbjit_code_info *coi, mrb_irep *irep)
+  {
+    gen_set_jit_entry_lit(mrb, pc, coi, irep);
 
     //ci->jit_entry = (irep->jit_entry_tab[-1] + ioff)->body[0].entry;
     /* reg_context must point current context  */
@@ -1237,7 +1243,7 @@ class MRBJitCode: public MRBGenericCodeGenerator {
 \
     emit_arg_push(mrb, coi, 0, reg_mrb);			     \
     call((void *)func_name);                                         \
-    emit_cfunc_end(mrb, coi, (auxargs + 2) * 4);	             \
+    emit_cfunc_end(mrb, coi, (auxargs + 2) * sizeof(cpu_word_t));    \
 \
     test(reg_tmp0, reg_tmp0);					     \
     jz("@f");                                                        \
@@ -1472,15 +1478,18 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     gen_flush_regs(mrb, pc, status, coi, 1);
 
     if (MRB_PROC_CFUNC_P(m)) {
+      mrb_irep *irep = *status->irep;
       //mrb_p(mrb, regs[a]);
       //puts(mrb_sym2name(mrb, mid)); // for tuning
       //printf("%x \n", irep);
       CALL_CFUNC_BEGIN;
+      gen_set_jit_entry_lit(mrb, pc, coi, irep);
+      emit_arg_push(mrb, coi, 4, reg_tmp1);
       emit_load_literal(mrb, coi, reg_tmp0, (cpu_word_t)c);
       emit_arg_push(mrb, coi, 3, reg_tmp0);
       emit_load_literal(mrb, coi, reg_tmp0, (cpu_word_t)m);
       emit_arg_push(mrb, coi, 2, reg_tmp0);
-      CALL_CFUNC_STATUS(mrbjit_exec_send_c, 2);
+      CALL_CFUNC_STATUS(mrbjit_exec_send_c, 3);
 
       /* Restore c->stack to reg_regs */
       emit_move(mrb, coi, reg_tmp0, reg_mrb, OffsetOf(mrb_state, c));
