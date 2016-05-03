@@ -847,7 +847,7 @@ mrb_yield_with_class(mrb_state *mrb, mrb_value b, mrb_int argc, const mrb_value 
 
   if (MRB_PROC_CFUNC_P(p)) {
     int orgdisflg = mrb->compile_info.disable_jit;
-    mrb->compile_info.disable_jit = 1;
+    mrb->compile_info.disable_jit = 0;
     val = p->body.func(mrb, self);
     mrb->compile_info.disable_jit = orgdisflg;
     mrb->c->stack = mrb->c->ci->stackent;
