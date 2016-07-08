@@ -666,6 +666,9 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     emit_load_literal(mrb, coi, reg_tmp0, 0);
     emit_move(mrb, coi, reg_context, OffsetOf(mrb_callinfo, env), reg_tmp0);
     emit_move(mrb, coi, reg_context, OffsetOf(mrb_callinfo, err), reg_tmp0);
+    if (irep->jit_inlinep == 0 || 1) {
+      //emit_move(mrb, coi, reg_tmp1, OffsetOf(mrb_callinfo, jit_entry), reg_tmp0);
+    }
 
     /* Inherit eidx/ridx */
     emit_move(mrb, coi, reg_tmp0, reg_tmp1, OffsetOf(mrb_callinfo, eidx));
@@ -725,7 +728,7 @@ class MRBJitCode: public MRBGenericCodeGenerator {
       gen_stack_extend(mrb, status, coi, callee_nregs, n + 2);
     }
 
-    if (1 || !irep->jit_inlinep) {
+    if (irep->jit_inlinep == 0 || 1) {
       gen_set_jit_entry(mrb, pc, coi, irep);
     }
 
@@ -1825,24 +1828,16 @@ class MRBJitCode: public MRBGenericCodeGenerator {
       emit_move(mrb, coi, reg_tmp1, reg_context, OffsetOf(mrb_context, ci));
     }
 
-    if (!(*status->irep)->jit_inlinep) {
-      /* Set return address from callinfo */
-      emit_move(mrb, coi, reg_tmp0, reg_tmp1, OffsetOf(mrb_callinfo, jit_entry));
-      test(reg_tmp0, reg_tmp0);
-      jnz("@f");
+    /* Set return address from callinfo */
+    emit_move(mrb, coi, reg_tmp0, reg_tmp1, OffsetOf(mrb_callinfo, jit_entry));
+    test(reg_tmp0, reg_tmp0);
+    jnz("@f");
 
-      L(".reg_vm");
-      gen_exit(mrb, NULL, 1, 1, status, coi);
+    L(".reg_vm");
+    gen_exit(mrb, NULL, 1, 1, status, coi);
 
-      L("@@");
-      emit_jmp(mrb, coi, reg_tmp0);
-    }
-    else {
-      emit_jmp(mrb, coi, "@f");
-      L(".reg_vm");
-      gen_exit(mrb, NULL, 1, 1, status, coi);
-      L("@@");
-    }
+    L("@@");
+    emit_jmp(mrb, coi, reg_tmp0);
 
     outLocalLabel();
 
