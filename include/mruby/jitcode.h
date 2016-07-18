@@ -549,7 +549,7 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     emit_move(mrb, coi, reg_tmp0, OffsetOf(mrb_callinfo, jit_entry) - sizeof(mrb_callinfo), reg_tmp1);
   }
 
-#ifdef ENABLE_DEBUG
+#ifdef MRB_ENABLE_DEBUG_HOOK
   void
     gen_call_fetch_hook(mrb_state *mrb, mrbjit_vmstatus *status, mrbjit_code_info *coi)
   {
@@ -564,7 +564,7 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     emit_arg_push(mrb, coi, 1, reg_tmp0);
     emit_arg_push(mrb, coi, 0, reg_mrb);
     call((void *)mrb->code_fetch_hook);
-    emit_cfunc_end(mrb, coi, sizeof(void *) * 4);
+    emit_cfunc_end(mrb, coi, sizeof(void *) * 3);
     emit_pop(mrb, coi, reg_tmp0);
     emit_pop(mrb, coi, reg_tmp1);
   }

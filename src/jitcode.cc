@@ -115,7 +115,7 @@ mrbjit_emit_code_aux(mrb_state *mrb, mrbjit_vmstatus *status,
 
   entry = code->gen_entry(mrb, status);
 
-#ifdef ENABLE_DEBUG
+#ifdef MRB_ENABLE_DEBUG_HOOK
   if (mrb->code_fetch_hook) {
     code->gen_call_fetch_hook(mrb, status, coi);
   }
