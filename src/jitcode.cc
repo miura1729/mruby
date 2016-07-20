@@ -23,7 +23,7 @@ mrbjit_get_curr(mrbjit_code_area coderaw)
   return code->getCurr();
 }
 
-static MRBJitCode *the_code = new MRBJitCode();
+static MRBJitCode *the_code = new MRBJitCode(1024 * 1024 * 10, 1024 * 1024);
 
 void
 mrbjit_gen_jmp_patch(mrb_state *mrb, mrbjit_code_area coderaw, void *dst, void *target, mrbjit_vmstatus *status, mrbjit_code_info *coi)

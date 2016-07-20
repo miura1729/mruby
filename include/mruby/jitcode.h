@@ -47,13 +47,27 @@ class MRBJitCode: public MRBGenericCodeGenerator {
 
   void *addr_call_extend_callinfo;
   void *addr_call_stack_extend;
+  MRBJitCode *sub_code;
 
  public:
 
- MRBJitCode()
+ MRBJitCode(size_t maxSize, size_t subSize)
+    :MRBGenericCodeGenerator(maxSize)
   {
     addr_call_extend_callinfo = NULL;
     addr_call_stack_extend = NULL;
+    if (subSize) {
+      sub_code = new MRBJitCode(subSize, 0);
+    }
+    else {
+      sub_code = NULL;
+    }
+  }
+
+  void
+    set_sub_code(MRBJitCode *sub)
+  {
+    sub_code = sub;
   }
 
   const void
@@ -309,6 +323,13 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     setSize(cursize);
   }
 
+  void
+    gen_exit_sub(mrb_state *mrb, mrb_code *pc, int is_clr_rc, int is_clr_exitpos, mrbjit_vmstatus *status, mrbjit_code_info *coi)
+  {
+    sub_code->gen_exit(mrb, pc, is_clr_rc, is_clr_exitpos, status, coi);
+  }
+   
+
   void 
     gen_exit_patch(mrb_state *mrb, void *dst, mrb_code *pc, mrbjit_vmstatus *status, mrbjit_code_info *coi)
   {
@@ -376,17 +397,15 @@ class MRBJitCode: public MRBGenericCodeGenerator {
     /* Input reg_tmp0 for type tag */
     if (tt == MRB_TT_FLOAT) {
       emit_cmp(mrb, coi, reg_tmp0, 0xfff00000);
-      jb("@f");
+      jae((const char *)sub_code->getCurr());
     } 
     else {
       emit_cmp(mrb, coi, reg_tmp0, 0xfff00000 | tt);
-      jz("@f");
+      jnz((const char *)sub_code->getCurr());
     }
 
-    /* Guard fail exit code */
-    gen_exit(mrb, pc, 1, 0, status, coi);
-
-    L("@@");
+    /* Geneatoe exit code other space */
+    gen_exit_sub(mrb, pc, 1, 0, status, coi);
   }
 
   /*
