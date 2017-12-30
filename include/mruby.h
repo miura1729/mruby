@@ -319,9 +319,12 @@ MRB_API void mrb_include_module(mrb_state*, struct RClass*, struct RClass*);
  * @param [struct RClass *] RClass* A reference to the module to be prepended.
  */
 MRB_API void mrb_prepend_module(mrb_state*, struct RClass*, struct RClass*);
-MRB_API void mrb_define_method_raw(mrb_state*, struct RClass*, mrb_sym, mrb_method_t);
 
-/* utilty API */
+/* declaration for function using in macros for define method */
+MRB_API void mrb_define_method_raw(mrb_state*, struct RClass*, mrb_sym, mrb_method_t);
+void mrb_prepare_singleton_class(mrb_state *, struct RBasic *);
+
+/* Utilty macros for METHOD */
 #define MRB_METHOD_FUNC_FL (1)
 #define MRB_METHOD_FUNC_P(m) ((uintptr_t)(m)&MRB_METHOD_FUNC_FL)
 #define MRB_METHOD_FUNC(m) (*((mrb_func_t *)(((uintptr_t)(m))&(~MRB_METHOD_FUNC_FL))))
@@ -330,6 +333,7 @@ MRB_API void mrb_define_method_raw(mrb_state*, struct RClass*, mrb_sym, mrb_meth
 #define MRB_METHOD_PROC_P(m) (!MRB_METHOD_FUNC_P(m))
 #define MRB_METHOD_PROC(m) ((struct RProc*)(m))
 #define MRB_METHOD_UNDEF_P(m) ((m)==0)
+
 #define mrb_define_method_id(mrb, c, mid, func, aspec)  {        \
   static void *tab_## func = func;                               \
   mrb_method_t m;                                                \
@@ -398,7 +402,6 @@ MRB_API void mrb_define_method_raw(mrb_state*, struct RClass*, mrb_sym, mrb_meth
  * @param [mrb_func_t] mrb_func_t The function pointer to the class method definition.
  * @param [mrb_aspec] mrb_aspec The method parameters declaration.
  */
-void mrb_prepare_singleton_class(mrb_state *, struct RBasic *);
 /*MRB_API void mrb_define_singleton_method(mrb_state*, struct RObject*, const char*, mrb_func_t, mrb_aspec);*/
 #define mrb_define_singleton_method(mrb,o,name,func,aspec) {                 \
   mrb_prepare_singleton_class(mrb, (struct RBasic*)o);                     \
