@@ -108,7 +108,10 @@ MRB_API mrb_value mrb_proc_cfunc_env_get(mrb_state*, mrb_int);
 
 
 #define MRB_METHOD_CFUNC_P(m) !(((m) & MRB_METHOD_FUNC_FL) == 0 && ((((struct RProc *)(m))->flags) & MRB_PROC_CFUNC_FL) == 0)
-#define MRB_METHOD_CFUNC(m) (MRB_METHOD_FUNC_P(m)?MRB_METHOD_FUNC(m):MRB_PROC_CFUNC(MRB_METHOD_PROC(m)))
+#define MRB_METHOD_CFUNC(m) (MRB_METHOD_FUNC(m))
+
+#define MRB_DMETHOD_CFUNC_P(m) !(((m) & MRB_DMETHOD_FUNC_FL) == 0 && ((((struct RProc *)(m))->flags) & MRB_PROC_CFUNC_FL) == 0)
+#define MRB_DMETHOD_CFUNC(m) MRB_DMETHOD_FUNC(m)
 
 
 #include <mruby/khash.h>
