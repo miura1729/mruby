@@ -1664,7 +1664,9 @@ RETRY_TRY_BLOCK:
  	regs[a] = (MRB_DMETHOD_CFUNC(m))(mrb, regs + a, argc);
         mrb_gc_arena_restore(mrb, ai);
         mrb_gc_arena_shrink(mrb, ai);
-        if (mrb->exc) goto L_RAISE;
+        if (mrb->exc) {
+	  goto L_RAISE;
+	}
 	  
 	NEXT;
       }

@@ -817,7 +817,10 @@ mrb_ary_aget(mrb_state *mrb, mrb_value *regs, mrb_int argc)
   mrb_int i, len, alen = ARY_LEN(a);
   mrb_value index = regs[1];
 
-  assert(argc == 1 || argc == 2);
+  if (argc == 0 || argc > 2) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "wrong number of arguments");
+  }
+
   if (argc == 2) {
     len = mrb_fixnum(regs[2]);
   }
